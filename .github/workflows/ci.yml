@@ -11,7 +11,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # TimescaleDB image: migrations create hypertables / the timescaledb extension.
+        image: timescale/timescaledb:latest-pg16
         env:
           POSTGRES_USER: gridclean
           POSTGRES_PASSWORD: gridclean
@@ -25,6 +26,7 @@ jobs:
           --health-retries 10
 
     env:
+      ENVIRONMENT: test
       DATABASE_URL: postgresql+asyncpg://gridclean:gridclean@localhost:5432/gridclean
       REDIS_URL: redis://localhost:6379/0
 
@@ -42,6 +44,9 @@ jobs:
 
       - name: Lint
         run: ruff check .
+
+      - name: Apply migrations
+        run: alembic upgrade head
 
       - name: Test
         run: pytest -q

@@ -32,9 +32,24 @@ make install            # pip install -e ".[dev]"
 # 3. Configure env
 cp .env.example .env    # then edit DATABASE_URL host port to 5433 for local runs
 
-# 4. Apply migrations and run
+# 4. Apply migrations
 make migrate            # alembic upgrade head
+
+# 5. Load reference data + ingest live EIA generation
+#    (needs a free EIA key in .env — https://www.eia.gov/opendata/register.php)
+python -m app.manage seed             # regions, emission factors, ZIP crosswalk
+python -m app.manage ingest --hours 24  # fetch EIA-930 + compute carbon intensity
+
+# 6. Run
 make dev                # uvicorn on :8000  →  http://localhost:8000/docs
+```
+
+Try it:
+
+```bash
+curl "http://localhost:8000/v1/carbon/now?zip=94103"   # by ZIP
+curl "http://localhost:8000/v1/carbon/now?region=CISO" # by region code
+curl "http://localhost:8000/v1/regions"
 ```
 
 > **Note:** docker-compose maps Postgres to host port **5433** (to avoid clashing
