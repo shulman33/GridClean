@@ -2,10 +2,11 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import carbon, health, meta, regions
+from app.api.v1 import ai, carbon, health, meta, regions
 
 api_router = APIRouter(prefix="/v1")
 api_router.include_router(health.router)
 api_router.include_router(regions.router)
 api_router.include_router(carbon.router)
 api_router.include_router(meta.router)
+api_router.include_router(ai.router)

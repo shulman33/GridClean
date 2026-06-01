@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     eia_api_key: str | None = Field(default=None)
     anthropic_api_key: str | None = Field(default=None)
 
+    # AI layer
+    # Default to the most capable model; set AI_MODEL=claude-sonnet-4-6 to cut cost.
+    ai_model: str = Field(default="claude-opus-4-8")
+    # Read-only DB role used to execute AI-generated SQL (created by migration).
+    ai_db_user: str = Field(default="gridclean_ro")
+    ai_db_password: str = Field(default="gridclean_ro_pw")
+
 
 @lru_cache
 def get_settings() -> Settings:

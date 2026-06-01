@@ -115,6 +115,30 @@ class CleanestHourOut(BaseModel):
     caveats: list[str]
 
 
+class AskIn(BaseModel):
+    question: str
+
+
+class AskOut(BaseModel):
+    question: str
+    sql: str
+    explanation: str
+    confidence: str
+    repaired: bool
+    row_count: int
+    rows: list[dict]
+    caveats: list[str]
+
+
+class InsightsOut(BaseModel):
+    region_code: str
+    region_name: str
+    window_hours: int
+    stats: dict
+    narrative: str
+    caveats: list[str]
+
+
 class CarbonNowOut(BaseModel):
     region_code: str
     region_name: str

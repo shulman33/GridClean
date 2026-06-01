@@ -55,6 +55,11 @@ curl "http://localhost:8000/v1/carbon/savings?region=CISO&kwh=10&from_hour=20&to
 curl "http://localhost:8000/v1/carbon/forecast?region=CISO&horizon=24"   # 24h forecast w/ intervals
 curl "http://localhost:8000/v1/carbon/cleanest-hour?zip=94103"           # best upcoming hour to run a load
 curl "http://localhost:8000/v1/regions"
+
+# AI layer (needs ANTHROPIC_API_KEY) — guardrailed natural-language querying
+curl -X POST "http://localhost:8000/v1/ai/ask" -H 'content-type: application/json' \
+  -d '{"question":"Which 3 regions are cleanest right now?"}'
+curl "http://localhost:8000/v1/ai/insights?region=CISO&hours=72"         # narrated insights
 curl "http://localhost:8000/v1/meta/freshness"                  # data staleness per region
 ```
 
