@@ -38,6 +38,11 @@ Rules:
 - Reference only the three views above. Never reference base tables or catalogs.
 - Region codes are uppercase balancing-authority codes (CISO, ERCO, PJM, ...).
 - Periods are UTC timestamps; use intervals like period >= now() - interval '7 days'.
+- IMPORTANT: the data LAGS real time by several hours. For "now"/"current"/
+  "right now"/"latest", use the most recent available row per region via
+  SELECT DISTINCT ON (region_code) ... ORDER BY region_code, period DESC.
+  Do NOT filter "now" to a short recent window (e.g. last 1-6 hours) — that can
+  exclude the lagged data and return nothing.
 - "cleanest" = lowest gco2_per_kwh; "dirtiest" = highest.
 - Always include a sensible LIMIT.
 
@@ -46,9 +51,11 @@ Q: What was the average carbon intensity for CISO over the last 7 days?
 SQL: SELECT AVG(gco2_per_kwh) AS avg_gco2_per_kwh FROM ai_carbon_intensity
      WHERE region_code = 'CISO' AND period >= now() - interval '7 days';
 
-Q: Which 5 regions have the highest renewable share right now?
-SQL: SELECT DISTINCT ON (region_code) region_code, renewable_share, period
-     FROM ai_carbon_intensity ORDER BY region_code, period DESC LIMIT 100;
+Q: Which 3 regions are cleanest right now?
+SQL: SELECT region_code, gco2_per_kwh FROM (
+       SELECT DISTINCT ON (region_code) region_code, gco2_per_kwh, period
+       FROM ai_carbon_intensity ORDER BY region_code, period DESC
+     ) latest ORDER BY gco2_per_kwh ASC LIMIT 3;
 
 Q: How much wind generation did ERCOT have yesterday?
 SQL: SELECT SUM(mwh) AS wind_mwh FROM ai_fuel_generation

@@ -41,8 +41,15 @@ python -m app.manage seed             # regions, emission factors, ZIP crosswalk
 python -m app.manage ingest --hours 24  # fetch EIA-930 + compute carbon intensity
 
 # 6. Run
-make dev                # uvicorn on :8000  →  http://localhost:8000/docs
+make dev                # uvicorn on :8000
 ```
+
+Then open:
+- **Interactive demo UI** → http://localhost:8000/app/ — a "grid console" that
+  exercises every endpoint live: location lookup, fuel mix, a 48h→24h forecast
+  chart, region comparison, and the AI features (natural-language querying +
+  narrated insights). Built with Tailwind v4 + vanilla JS + Chart.js.
+- **API docs** → http://localhost:8000/docs
 
 Try it:
 
