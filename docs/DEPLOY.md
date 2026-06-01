@@ -1,9 +1,11 @@
 # Deploying GridClean
 
-A runbook for putting GridClean online. The app is **deploy-portable**: it runs
-on vanilla managed Postgres (Neon, Railway PG, RDS) — the Phase-1 migration uses
-TimescaleDB hypertables where available and falls back to plain indexed tables
-where it isn't, automatically. No app changes are needed to deploy.
+A runbook for putting GridClean online. The app is **deploy-portable**: the
+Phase-1 migration uses TimescaleDB hypertables where the extension is available
+and falls back to plain indexed tables where it isn't — automatically, no app
+changes needed. **Neon supports `timescaledb`** (Apache-2 features; compression
+excluded, which we don't use), so on Neon you get real hypertables. The btree
+fallback only applies to hosts without the extension (e.g. Railway Postgres, RDS).
 
 You'll provision four things:
 
@@ -38,8 +40,9 @@ You'll provision four things:
    ```
    Changes: `postgresql` → `postgresql+asyncpg`, and `?sslmode=require` → `?ssl=require`
    (asyncpg rejects `sslmode`). This is `DATABASE_URL`.
-3. Timescale isn't available on Neon — that's fine; the migration detects this
-   and creates plain btree indexes on `period` instead of hypertables.
+3. Neon **supports `timescaledb`**, so the migration enables it
+   (`CREATE EXTENSION IF NOT EXISTS timescaledb`, which it does automatically when
+   the extension is available) and creates hypertables — no manual step needed.
 
 > The migration also creates a **read-only role** (`gridclean_ro`) with SELECT on
 > the `ai_*` views only. It's created with the password from `AI_DB_PASSWORD`, so
