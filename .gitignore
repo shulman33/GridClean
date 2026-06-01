@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Data dumps (large source files — fetched/seeded, not committed)
+data/raw/
+*.xlsx
+*.csv.gz
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Build / deploy
+dist/
+build/
+*.log
