@@ -19,6 +19,35 @@ On top sits a small, deliberately well-engineered AI layer: guardrailed natural-
 
 FastAPI · Postgres + TimescaleDB + pgvector · Redis · Anthropic Claude · Prophet/NeuralProphet · Scalar docs · deployed on Render/Railway + Neon.
 
+## Quickstart (local dev)
+
+```bash
+# 1. Start Postgres (host port 5433) + Redis
+make up                 # or: docker compose up -d db redis
+
+# 2. Create a virtualenv and install
+python3 -m venv .venv && source .venv/bin/activate
+make install            # pip install -e ".[dev]"
+
+# 3. Configure env
+cp .env.example .env    # then edit DATABASE_URL host port to 5433 for local runs
+
+# 4. Apply migrations and run
+make migrate            # alembic upgrade head
+make dev                # uvicorn on :8000  →  http://localhost:8000/docs
+```
+
+> **Note:** docker-compose maps Postgres to host port **5433** (to avoid clashing
+> with a local Postgres on 5432). The `api` container talks to `db:5432` internally,
+> so set `DATABASE_URL=...@localhost:5433/...` only for runs from your host.
+
+Run tests and lint:
+
+```bash
+make test    # pytest
+make lint    # ruff
+```
+
 ## Attribution
 
 - Electricity generation: U.S. Energy Information Administration (EIA-930)
