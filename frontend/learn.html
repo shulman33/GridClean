@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Understanding GridClean — a field guide to the carbon in your electricity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,800&family=Mulish:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #faf5ec;
+      --paper-2: #f1e9da;
+      --ink: #211c16;
+      --ink-soft: #5c554a;
+      --rule: #ddd1bd;
+      --accent: #0f6b5f;        /* evergreen — links / brand */
+      --c-vclean: #2f9e6b;
+      --c-clean: #8fb83a;
+      --c-mod: #e0a92e;
+      --c-dirty: #df7e2d;
+      --c-vdirty: #d6453d;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--paper); color: var(--ink);
+      font-family: "Mulish", sans-serif; font-size: 18px; line-height: 1.7;
+      background-image: radial-gradient(120% 60% at 50% 0%, #fffdf8, transparent 70%);
+    }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 0 24px; }
+    h1, h2, h3 { font-family: "Fraunces", serif; line-height: 1.12; letter-spacing: -0.01em; }
+    h1 { font-size: clamp(2.4rem, 6vw, 3.8rem); font-weight: 800; margin: 0 0 0.3em; }
+    h2 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 600; margin: 2.6em 0 0.5em; }
+    h3 { font-size: 1.3rem; font-weight: 600; margin: 1.8em 0 0.4em; }
+    p { margin: 0 0 1.1em; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    code, .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.92em; }
+    .lede { font-size: 1.3rem; color: var(--ink-soft); font-family: "Fraunces", serif; font-weight: 500; }
+    strong { font-weight: 700; }
+    em { color: var(--ink); }
+
+    header.hero { padding: 90px 0 30px; border-bottom: 2px solid var(--ink); }
+    .kicker { font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.4em; }
+
+    section { padding: 8px 0; }
+    .num { font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+
+    .scale { margin: 1.6em 0; }
+    .scale-bar { height: 26px; border-radius: 7px; background: linear-gradient(90deg, var(--c-vclean), var(--c-clean), var(--c-mod), var(--c-dirty), var(--c-vdirty)); }
+    .scale-ticks { display: flex; justify-content: space-between; font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; color: var(--ink-soft); margin-top: 6px; }
+    .scale-ex { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .pill { font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; padding: 5px 10px; border-radius: 999px; color: #fff; font-weight: 600; }
+
+    .card { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 14px; padding: 22px 24px; margin: 1.6em 0; }
+    .card.accent { border-left: 5px solid var(--accent); }
+
+    .eq { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 14px; align-items: stretch; margin: 1.4em 0; }
+    .eq .box { background: #fff; border: 1px solid var(--rule); border-radius: 12px; padding: 16px; text-align: center; }
+    .eq .op { display: flex; align-items: center; font-family: "Fraunces", serif; font-size: 2rem; color: var(--ink-soft); }
+    .eq .box .src { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; color: var(--accent); letter-spacing: 0.05em; }
+    .eq .box .lbl { font-weight: 700; margin: 4px 0; }
+    .eq .box .sub { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.4; }
+    @media (max-width: 680px) { .eq { grid-template-columns: 1fr; } .eq .op { justify-content: center; } }
+
+    .calc { background: #1c1916; color: #f3ede2; border-radius: 16px; padding: 26px; margin: 1.6em 0; }
+    .calc h3 { color: #fff; margin-top: 0; }
+    .calc .row { display: grid; grid-template-columns: 130px 1fr 52px; align-items: center; gap: 12px; margin: 10px 0; }
+    .calc label { font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; }
+    .calc input[type=range] { width: 100%; accent-color: #35e0d8; }
+    .calc .pctval { font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; text-align: right; color: #c7bfb0; }
+    .calc .readout { display: flex; align-items: baseline; gap: 12px; margin: 18px 0 6px; flex-wrap: wrap; }
+    .calc .big { font-family: "Fraunces", serif; font-weight: 800; font-size: 3.6rem; line-height: 1; }
+    .calc .unit { font-family: "IBM Plex Mono", monospace; color: #c7bfb0; font-size: 0.9rem; }
+    .calc .badge { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 10px; border-radius: 999px; color: #18140f; font-weight: 600; }
+    .stack { height: 16px; border-radius: 999px; overflow: hidden; display: flex; margin: 10px 0 4px; background: #322c25; }
+    .stack > span { height: 100%; transition: width 0.25s; }
+    .calc .ev { font-size: 0.95rem; color: #d8d0c2; border-top: 1px solid #3a342c; margin-top: 16px; padding-top: 14px; }
+    .calc .ev b { color: #35e0d8; font-family: "IBM Plex Mono", monospace; }
+
+    ul.clean { padding-left: 1.1em; }
+    ul.clean li { margin: 0.5em 0; }
+    .feat { margin: 0.6em 0; padding-left: 14px; border-left: 3px solid var(--rule); }
+    .feat b { font-family: "Fraunces", serif; }
+
+    .why { background: var(--ink); color: var(--paper); border-radius: 16px; padding: 30px; margin: 1.6em 0; }
+    .why h3 { color: #fff; margin-top: 0.4em; }
+    .why .tag { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; color: #ffd9a3; letter-spacing: 0.05em; }
+    .why .pitch { font-family: "Fraunces", serif; font-size: 1.4rem; line-height: 1.35; border-left: 4px solid #35e0d8; padding-left: 18px; margin: 18px 0; }
+
+    dl.glossary dt { font-weight: 700; font-family: "IBM Plex Mono", monospace; font-size: 0.92rem; margin-top: 1em; color: var(--accent); }
+    dl.glossary dd { margin: 0.2em 0 0; color: var(--ink-soft); }
+
+    footer { border-top: 2px solid var(--ink); margin-top: 60px; padding: 28px 0 80px; font-size: 0.9rem; color: var(--ink-soft); }
+    .toc { font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; color: var(--ink-soft); }
+    .toc a { display: inline-block; margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="kicker">GridClean · a field guide</div>
+      <h1>The carbon hidden in<br />your electricity</h1>
+      <p class="lede">Every kilowatt-hour you use carries an invisible amount of CO₂ — and it isn't fixed. It changes by the hour and by where you live. This is a plain-English tour of that idea, and of the project built to measure it.</p>
+      <p class="toc">
+        ↓ &nbsp;<a href="#basics">the basics</a> · <a href="#scale">the scale</a> · <a href="#when">when &amp; where</a> · <a href="#calc">try it</a> · <a href="#fusion">the data puzzle</a> · <a href="#does">what it does</a> · <a href="#why">why it's a strong project</a> · <a href="#glossary">glossary</a>
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <section id="basics">
+      <h2>Electricity isn't "clean" or "dirty." It depends.</h2>
+      <p>When you charge your phone, the electrons don't come from one labelled source. They come from <em>the grid</em> — the giant shared pool of every power plant running in your region at that exact moment. Some of those plants burn fossil fuels and emit carbon dioxide (CO₂, the main greenhouse gas warming the planet). Others — wind, solar, hydro, nuclear — emit almost none while running.</p>
+      <p>So the "cleanliness" of your electricity is really a question about <strong>the mix of what's generating it right now</strong>:</p>
+      <ul class="clean">
+        <li><strong>Coal</strong> — the dirtiest. Roughly <span class="num">1,000</span> grams of CO₂ per kWh.</li>
+        <li><strong>Natural gas</strong> — about <span class="num">400</span> g/kWh. Cleaner than coal, still fossil.</li>
+        <li><strong>Wind, solar, hydro, nuclear</strong> — essentially <span class="num">0</span> g/kWh while operating.</li>
+      </ul>
+      <div class="card accent">
+        <strong>Carbon intensity</strong> is the one number that captures this: the grams of CO₂ emitted per kilowatt-hour of electricity (written <span class="mono">gCO₂/kWh</span>). It's a weighted average of whatever's on the grid — burn more coal, the number goes up; add more solar, it goes down.
+      </div>
+    </section>
+
+    <section id="scale">
+      <h2>A ruler for "how clean"</h2>
+      <p>Real grids run anywhere from near-zero to well over 600 gCO₂/kWh. GridClean paints every number on this green-to-red scale — it's the visual signature of the whole project.</p>
+      <div class="scale">
+        <div class="scale-bar"></div>
+        <div class="scale-ticks"><span>0</span><span>100</span><span>200</span><span>300</span><span>400</span><span>500+</span></div>
+        <div class="scale-ex">
+          <span class="pill" style="background:var(--c-vclean)">~20 · Norway hydro</span>
+          <span class="pill" style="background:var(--c-vclean)">~50 · CA solar noon</span>
+          <span class="pill" style="background:var(--c-mod)">~250 · mixed grid</span>
+          <span class="pill" style="background:var(--c-dirty)">~400 · gas-heavy</span>
+          <span class="pill" style="background:var(--c-vdirty)">~700 · coal-heavy</span>
+        </div>
+      </div>
+      <p>For context, a gallon of gasoline burned in a car emits about <span class="num">8,900</span> grams of CO₂. So a clean kWh is a rounding error; a dirty one adds up.</p>
+    </section>
+
+    <section id="when">
+      <h2>The twist: it changes by the hour and by the map</h2>
+      <p><strong>By the hour.</strong> In California, the sun comes up and solar floods the grid — carbon intensity can fall to ~30 gCO₂/kWh at midday, then climb past 200 after sunset when gas plants take over. Same wall socket, ~8× difference depending on the clock.</p>
+      <p><strong>By the place.</strong> California (hydro, solar, nuclear) is far cleaner than the coal-heavy Midwest. Plug the same heater into the wall in San Francisco vs. rural Missouri and the emissions can differ several-fold.</p>
+      <div class="card">
+        <strong>Why anyone cares:</strong> if a kWh can be 8× cleaner at the right moment, then <em>shifting flexible loads</em> — charging your EV, running the dishwasher, scheduling a data center's batch jobs — to clean hours cuts real emissions with zero change in how you live. This is called <strong>load shifting</strong> or <strong>carbon-aware computing</strong>, and big companies (Google, Microsoft) do it at scale. Companies like <em>WattTime</em> and <em>Electricity Maps</em> sell exactly this data.
+      </div>
+    </section>
+
+    <section id="calc">
+      <h2>Build a grid, watch the carbon</h2>
+      <p>This is the whole idea in one widget. Drag the sliders to set what's generating electricity, and see the carbon intensity it produces — computed with the same emission factors GridClean's API uses. (The mix is normalized to 100%.)</p>
+
+      <div class="calc" aria-label="interactive carbon intensity calculator">
+        <h3>Your grid mix</h3>
+        <div class="row"><label>Coal</label><input id="s-coal" type="range" min="0" max="100" value="20"><span class="pctval" id="v-coal">20%</span></div>
+        <div class="row"><label>Natural gas</label><input id="s-gas" type="range" min="0" max="100" value="40"><span class="pctval" id="v-gas">40%</span></div>
+        <div class="row"><label>Nuclear</label><input id="s-nuc" type="range" min="0" max="100" value="15"><span class="pctval" id="v-nuc">15%</span></div>
+        <div class="row"><label>Wind / solar / hydro</label><input id="s-ren" type="range" min="0" max="100" value="25"><span class="pctval" id="v-ren">25%</span></div>
+
+        <div class="stack" id="stack"></div>
+
+        <div class="readout">
+          <span class="big" id="intensity">—</span>
+          <span class="unit">gCO₂ / kWh</span>
+          <span class="badge" id="badge">—</span>
+        </div>
+        <div class="ev" id="ev"></div>
+      </div>
+      <p style="font-size:0.92rem;color:var(--ink-soft)">Try the extremes: all coal (~1,010), all renewables/nuclear (0). Then try to mimic California right now — mostly renewables + nuclear with a little gas — and watch it land in the clean green zone.</p>
+    </section>
+
+    <section id="fusion">
+      <h2>The data puzzle GridClean solves</h2>
+      <p>Here's the catch: <strong>no one publishes "carbon intensity right now, for your ZIP code" for free.</strong> But two U.S. government datasets each hold <em>half</em> the answer:</p>
+      <div class="eq">
+        <div class="box">
+          <div class="src">EIA-930</div>
+          <div class="lbl">Live fuel mix</div>
+          <div class="sub">How many MWh of coal, gas, wind, solar… each region is making this hour. <em>No emissions data.</em></div>
+        </div>
+        <div class="op">×</div>
+        <div class="box">
+          <div class="src">EPA eGRID</div>
+          <div class="lbl">Emission factors</div>
+          <div class="sub">How much CO₂ each fuel emits per MWh. <em>A static table — no live data.</em></div>
+        </div>
+        <div class="op">=</div>
+        <div class="box" style="border-color:var(--c-vclean)">
+          <div class="src">GridClean</div>
+          <div class="lbl">Live gCO₂/kWh</div>
+          <div class="sub">Multiply, sum, divide by total generation — a number <em>neither source publishes</em>.</div>
+        </div>
+      </div>
+      <p>That's the conceptual heart of the project: a <strong>data fusion</strong>. Multiply each fuel's live output by its emission factor, add them up, divide by the total electricity — and you've manufactured a valuable real-time metric out of two datasets that couldn't answer the question alone. It's the exact thing commercial services charge for.</p>
+      <p style="font-size:0.92rem;color:var(--ink-soft)">The genuinely hard part is geography: the live feed reports by "balancing authority" (the operator of a chunk of grid) while the emissions table is organized by EPA "subregion," and the two maps don't line up neatly. GridClean reconciles them and is honest about the uncertainty — every answer carries a <span class="mono">mapping_confidence</span> flag instead of pretending the match is perfect.</p>
+    </section>
+
+    <section id="does">
+      <h2>What GridClean actually lets you do</h2>
+      <p>Once you can compute that number, useful features fall out of it:</p>
+      <div class="feat"><b>Right now</b> — the live carbon intensity and fuel mix for any ZIP or region.</div>
+      <div class="feat"><b>History &amp; forecast</b> — the last 48 hours, plus a 24-hour prediction (with an honest error margin) of how clean the grid will be.</div>
+      <div class="feat"><b>Cleanest hour</b> — the best upcoming time to run a load, and how much CO₂ you'd save versus the dirtiest hour.</div>
+      <div class="feat"><b>Compare &amp; savings</b> — rank regions cleanest-to-dirtiest; quantify the CO₂ saved by time-shifting a specific load.</div>
+      <div class="feat"><b>Ask the grid</b> — type a plain-English question ("which regions are cleanest right now?") and get an answer, with the database query it ran shown for trust.</div>
+      <div class="feat"><b>Narrated insights</b> — a written summary of a region's recent trend, computed from the data and explained in words.</div>
+    </section>
+
+    <section id="why">
+      <h2>Why this is a strong portfolio project</h2>
+      <p>Beyond the cool factor, GridClean is built to <em>show range</em> — it touches the skills hiring managers actually probe for, and ties them to something real and explainable.</p>
+
+      <div class="why">
+        <div class="pitch">"I built an API that computes a number neither of its two data sources publishes — by fusing them — and put a guardrailed AI layer on top."</div>
+        <p style="color:#d8d0c2;margin-bottom:0">That one sentence is the hook. Here's what it's signalling underneath:</p>
+
+        <h3 style="margin-top:1.2em"><span class="tag">DATA ENGINEERING</span></h3>
+        <p style="color:#e8e1d4">A real pipeline: a live feed joined to a static reference table joined to a geographic crosswalk, with messy real-world geography reconciled honestly. This is the part that says "I can work with data, not just store it."</p>
+
+        <h3><span class="tag">BACKEND MATURITY</span></h3>
+        <p style="color:#e8e1d4">The things that separate "a tutorial" from "production thinking": cursor pagination, rate limiting, caching with ETags, API keys, structured logging, database migrations, automated tests, and CI. Plus stated, measured performance numbers.</p>
+
+        <h3><span class="tag">AI ENGINEERING (done right)</span></h3>
+        <p style="color:#e8e1d4">Not a chatbot wrapper. The natural-language-to-SQL feature is wrapped in real guardrails — the AI's query is validated, then run by a database user that physically <em>cannot</em> write or read anything outside a few safe views — and there's an evaluation suite that scores its accuracy. That defensive, measured approach is the difference between "used an LLM" and "engineered with one."</p>
+
+        <h3><span class="tag">FULL-STACK + COMMUNICATION</span></h3>
+        <p style="color:#e8e1d4">A live, interactive front end people can click — and the ability (this very document) to explain a niche domain clearly. Being able to teach the thing is half of being trusted to build it.</p>
+      </div>
+
+      <p>In an interview, every clause of that pitch invites a good follow-up question — "how did you reconcile the geographies?", "what happens if the AI writes a bad query?", "how do you know the forecast is any good?" — and you have a real, defensible answer to each. That's what makes a project memorable instead of a line on a list.</p>
+    </section>
+
+    <section id="glossary">
+      <h2>Glossary</h2>
+      <dl class="glossary">
+        <dt>kWh / MWh</dt>
+        <dd>Kilowatt-hour and megawatt-hour — units of energy. 1 MWh = 1,000 kWh. A typical home uses ~30 kWh/day; a power plant's output is measured in MWh.</dd>
+        <dt>gCO₂/kWh — carbon intensity</dt>
+        <dd>Grams of CO₂ emitted per kilowatt-hour of electricity. The headline metric. Lower is cleaner.</dd>
+        <dt>Fuel mix</dt>
+        <dd>The breakdown of what's generating electricity at a moment — e.g. 40% gas, 25% renewables, 15% nuclear, 20% coal.</dd>
+        <dt>Balancing authority</dt>
+        <dd>The operator responsible for matching electricity supply and demand across a chunk of the grid (e.g. CISO = California ISO, ERCO = Texas/ERCOT). EIA reports the live mix per balancing authority.</dd>
+        <dt>eGRID subregion</dt>
+        <dd>EPA's geographic units for reporting emission factors. They don't align 1:1 with balancing authorities — hence GridClean's <span class="mono">mapping_confidence</span>.</dd>
+        <dt>Average vs. marginal emissions</dt>
+        <dd>GridClean computes the <em>average</em> intensity of all generation. "Marginal" asks which plant ramps up for your <em>next</em> kWh — a harder question (and what premium products model). An honest limitation, stated plainly.</dd>
+        <dt>Load shifting</dt>
+        <dd>Moving flexible electricity use to cleaner hours to cut emissions without using less energy overall.</dd>
+      </dl>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p><strong>GridClean</strong> — live carbon intensity of electricity, by location. Data: U.S. EIA-930 (fuel mix) × U.S. EPA eGRID (emission factors).</p>
+      <p>Explore the live console at <a href="/app/">/app/</a> · API reference at <a href="/scalar">/scalar</a>.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Same emission factors the API uses (lb CO2/MWh × 0.453592 → gCO2/kWh).
+    const FACTOR = { coal: 1010, gas: 410, nuc: 0, ren: 0 };
+    const COLOR = { coal: "#6b6b6b", gas: "#df7e2d", nuc: "#8b9cf5", ren: "#2f9e6b" };
+    const ids = ["coal", "gas", "nuc", "ren"];
+
+    function carbon(g) {
+      if (g < 80) return ["#2f9e6b", "very clean"];
+      if (g < 160) return ["#8fb83a", "clean"];
+      if (g < 260) return ["#e0a92e", "moderate"];
+      if (g < 380) return ["#df7e2d", "dirty"];
+      return ["#d6453d", "very dirty"];
+    }
+    const bold = (t) => { const e = document.createElement("b"); e.textContent = t; return e; };
+
+    function update() {
+      const raw = {};
+      let total = 0;
+      ids.forEach((k) => { raw[k] = +document.getElementById("s-" + k).value; total += raw[k]; });
+
+      const stack = document.getElementById("stack");
+      stack.replaceChildren();
+      let intensity = 0;
+      ids.forEach((k) => {
+        const share = total > 0 ? raw[k] / total : 0;
+        intensity += share * FACTOR[k];
+        document.getElementById("v-" + k).textContent = Math.round(share * 100) + "%";
+        const seg = document.createElement("span");
+        seg.style.width = (share * 100) + "%";
+        seg.style.background = COLOR[k];
+        stack.appendChild(seg);
+      });
+
+      const g = Math.round(intensity);
+      const [color, label] = carbon(g);
+      const el = document.getElementById("intensity");
+      el.textContent = total > 0 ? g : "—";
+      el.style.color = color;
+      const badge = document.getElementById("badge");
+      badge.textContent = label;
+      badge.style.background = color;
+
+      // make it concrete: charging a 60 kWh EV  (built with safe DOM nodes)
+      const kg = (g * 60 / 1000).toFixed(1);
+      const miles = Math.round((g * 60) / 250); // ~250 gCO2/mile, gasoline car
+      document.getElementById("ev").replaceChildren(
+        document.createTextNode("Charging a 60 kWh EV battery at this intensity emits "),
+        bold(kg + " kg"),
+        document.createTextNode(" of CO₂ — about the same as driving a gasoline car "),
+        bold(miles + " miles"),
+        document.createTextNode("."),
+      );
+    }
+    ids.forEach((k) => document.getElementById("s-" + k).addEventListener("input", update));
+    update();
+  </script>
+</body>
+</html>
