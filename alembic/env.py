@@ -8,6 +8,7 @@ autogenerate works as models are added in later phases.
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import make_url
 
 import app.models  # noqa: F401 — registers all models on Base.metadata
 from alembic import context
@@ -20,8 +21,16 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Alembic runs migrations synchronously; convert the async URL to a sync one.
-sync_url = get_settings().database_url.replace("+asyncpg", "+psycopg")
-config.set_main_option("sqlalchemy.url", sync_url)
+# Two things change vs. the app's async URL: the driver (asyncpg → psycopg) and
+# the SSL query param. asyncpg spells it `ssl=require`; psycopg/libpq spells it
+# `sslmode=require` and errors on a bare `ssl` option — so translate it here, or
+# managed hosts (Neon/RDS) that require SSL fail the release migration.
+sync_url = make_url(get_settings().database_url).set(drivername="postgresql+psycopg")
+query = dict(sync_url.query)
+if "ssl" in query:
+    query["sslmode"] = query.pop("ssl")
+sync_url = sync_url.set(query=query)
+config.set_main_option("sqlalchemy.url", sync_url.render_as_string(hide_password=False))
 
 target_metadata = Base.metadata
 
