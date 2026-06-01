@@ -13,7 +13,18 @@ settings = get_settings()
 # Under tests, pytest-asyncio runs each test in its own event loop; a pooled
 # asyncpg connection bound to a previous loop raises "another operation is in
 # progress". NullPool opens a fresh connection per use, sidestepping this.
-_engine_kwargs: dict = {"echo": settings.debug, "future": True}
+#
+# In prod, the managed Postgres (Neon) drops idle connections after a few
+# minutes. Without pre-ping the pool hands out a dead connection and the next
+# request fails with asyncpg "connection is closed". pool_pre_ping issues a
+# cheap liveness check (and transparently reconnects) before each checkout;
+# pool_recycle proactively retires connections before the server's idle window.
+_engine_kwargs: dict = {
+    "echo": settings.debug,
+    "future": True,
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
 if settings.environment == "test":
     _engine_kwargs["poolclass"] = NullPool
 
