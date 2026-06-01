@@ -1,5 +1,6 @@
 """ORM models. Importing this package registers all models on Base.metadata."""
 
+from app.models.auth import ApiKey
 from app.models.generation import CarbonIntensityHourly, GenerationHourly
 from app.models.reference import EmissionFactor, Region, ZipRegion
 
@@ -9,4 +10,5 @@ __all__ = [
     "ZipRegion",
     "GenerationHourly",
     "CarbonIntensityHourly",
+    "ApiKey",
 ]

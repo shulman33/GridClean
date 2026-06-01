@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = Field(default="redis://localhost:6379/0")
 
+    # Rate limiting
+    anonymous_rate_limit_per_min: int = Field(default=30)
+    # Default response cache TTL (seconds) for /now and /compare.
+    cache_ttl_seconds: int = Field(default=300)
+
     # External APIs (filled in later phases)
     eia_api_key: str | None = Field(default=None)
     anthropic_api_key: str | None = Field(default=None)

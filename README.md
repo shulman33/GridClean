@@ -47,9 +47,24 @@ make dev                # uvicorn on :8000  →  http://localhost:8000/docs
 Try it:
 
 ```bash
-curl "http://localhost:8000/v1/carbon/now?zip=94103"   # by ZIP
-curl "http://localhost:8000/v1/carbon/now?region=CISO" # by region code
+curl "http://localhost:8000/v1/carbon/now?zip=94103"            # live intensity by ZIP
+curl "http://localhost:8000/v1/carbon/now?region=CISO"          # by region code
+curl "http://localhost:8000/v1/carbon/history?region=CISO&limit=24"  # time series (cursor-paginated)
+curl "http://localhost:8000/v1/carbon/compare?regions=CISO,ERCO,MISO"  # ranked cleanest->dirtiest
+curl "http://localhost:8000/v1/carbon/savings?region=CISO&kwh=10&from_hour=20&to_hour=11"  # time-shift savings
 curl "http://localhost:8000/v1/regions"
+curl "http://localhost:8000/v1/meta/freshness"                  # data staleness per region
+```
+
+### Auth & limits
+
+Endpoints work anonymously, rate-limited per IP. Supplying an API key raises
+your limit. Every response carries `X-RateLimit-*` headers; read-heavy
+endpoints send `ETag` + `Cache-Control` (send `If-None-Match` for a 304).
+
+```bash
+python -m app.manage apikey "My App" --limit 240   # mint a key (shown once)
+curl -H "X-API-Key: gck_..." "http://localhost:8000/v1/carbon/now?region=CISO"
 ```
 
 > **Note:** docker-compose maps Postgres to host port **5433** (to avoid clashing
