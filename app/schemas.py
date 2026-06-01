@@ -70,6 +70,51 @@ class SavingsOut(BaseModel):
     caveats: list[str]
 
 
+class ForecastPoint(BaseModel):
+    period: datetime
+    mean_gco2_per_kwh: float
+    lower_gco2_per_kwh: float
+    upper_gco2_per_kwh: float
+
+
+class BacktestMetrics(BaseModel):
+    mae_gco2_per_kwh: float  # primary metric (robust to near-zero solar lows)
+    mape_pct: float | None  # over hours >= 10 g/kWh; null if none qualify
+    holdout_hours: int
+    note: str
+
+
+class ForecastOut(BaseModel):
+    region_code: str
+    region_name: str
+    model: str
+    horizon_hours: int
+    interval_pct: int
+    trained_through: datetime
+    history_hours: int
+    backtest: BacktestMetrics
+    data: list[ForecastPoint]
+    caveats: list[str]
+
+
+class CleanHour(BaseModel):
+    period_utc: datetime
+    period_local: str
+    gco2_per_kwh: float
+
+
+class CleanestHourOut(BaseModel):
+    region_code: str
+    region_name: str
+    timezone: str | None
+    horizon_hours: int
+    cleanest: CleanHour
+    dirtiest: CleanHour
+    potential_savings_pct: float  # dirtiest -> cleanest
+    ranked: list[CleanHour]  # cleanest -> dirtiest
+    caveats: list[str]
+
+
 class CarbonNowOut(BaseModel):
     region_code: str
     region_name: str

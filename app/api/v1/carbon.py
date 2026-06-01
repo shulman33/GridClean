@@ -9,7 +9,15 @@ from app.config import get_settings
 from app.core.cache import cached_json
 from app.core.ratelimit import enforce_rate_limit
 from app.db.session import get_session
-from app.schemas import CarbonNowOut, CompareOut, HistoryOut, SavingsOut
+from app.schemas import (
+    CarbonNowOut,
+    CleanestHourOut,
+    CompareOut,
+    ForecastOut,
+    HistoryOut,
+    SavingsOut,
+)
+from app.services.forecast import cleanest_hour, forecast_region
 from app.services.queries import (
     build_compare,
     build_now,
@@ -81,6 +89,59 @@ async def carbon_compare(
         response=response,
         cache_key="compare:" + ",".join(codes),
         ttl=settings.cache_ttl_seconds,
+        build=build,
+    )
+
+
+@router.get("/forecast", response_model=ForecastOut)
+async def carbon_forecast(
+    request: Request,
+    response: Response,
+    region: str = Query(min_length=2, max_length=8),
+    horizon: int = Query(default=24, ge=1, le=72),
+    interval: int = Query(default=80, ge=50, le=99, description="Prediction interval %"),
+    session: AsyncSession = Depends(get_session),
+    _=Depends(enforce_rate_limit),
+):
+    """Forecast carbon intensity for the next `horizon` hours, with intervals."""
+    region_code = region.upper()
+
+    async def build() -> dict:
+        model = await forecast_region(session, region_code, horizon, interval)
+        return model.model_dump(mode="json")
+
+    # Forecasts are expensive to fit; cache longer than the live endpoints.
+    return await cached_json(
+        request=request,
+        response=response,
+        cache_key=f"forecast:{region_code}:{horizon}:{interval}",
+        ttl=max(settings.cache_ttl_seconds, 900),
+        build=build,
+    )
+
+
+@router.get("/cleanest-hour", response_model=CleanestHourOut)
+async def carbon_cleanest_hour(
+    request: Request,
+    response: Response,
+    zip: str | None = Query(default=None, min_length=5, max_length=5, pattern=r"^\d{5}$"),
+    region: str | None = Query(default=None, min_length=2, max_length=8),
+    horizon: int = Query(default=24, ge=1, le=72),
+    session: AsyncSession = Depends(get_session),
+    _=Depends(enforce_rate_limit),
+):
+    """The lowest-carbon upcoming hour(s) to run a load, from the forecast."""
+    region_row, _zip_confidence = await resolve_region(session, zip, region)
+
+    async def build() -> dict:
+        model = await cleanest_hour(session, region_row, horizon)
+        return model.model_dump(mode="json")
+
+    return await cached_json(
+        request=request,
+        response=response,
+        cache_key=f"cleanest:{region_row.code}:{horizon}",
+        ttl=max(settings.cache_ttl_seconds, 900),
         build=build,
     )
 

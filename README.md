@@ -17,7 +17,7 @@ On top sits a small, deliberately well-engineered AI layer: guardrailed natural-
 
 ## Stack
 
-FastAPI · Postgres + TimescaleDB + pgvector · Redis · Anthropic Claude · Prophet/NeuralProphet · Scalar docs · deployed on Render/Railway + Neon.
+FastAPI · Postgres + TimescaleDB + pgvector · Redis · statsmodels (ETS forecasting) · Anthropic Claude · Scalar docs · deployed on Render/Railway + Neon.
 
 ## Quickstart (local dev)
 
@@ -52,6 +52,8 @@ curl "http://localhost:8000/v1/carbon/now?region=CISO"          # by region code
 curl "http://localhost:8000/v1/carbon/history?region=CISO&limit=24"  # time series (cursor-paginated)
 curl "http://localhost:8000/v1/carbon/compare?regions=CISO,ERCO,MISO"  # ranked cleanest->dirtiest
 curl "http://localhost:8000/v1/carbon/savings?region=CISO&kwh=10&from_hour=20&to_hour=11"  # time-shift savings
+curl "http://localhost:8000/v1/carbon/forecast?region=CISO&horizon=24"   # 24h forecast w/ intervals
+curl "http://localhost:8000/v1/carbon/cleanest-hour?zip=94103"           # best upcoming hour to run a load
 curl "http://localhost:8000/v1/regions"
 curl "http://localhost:8000/v1/meta/freshness"                  # data staleness per region
 ```

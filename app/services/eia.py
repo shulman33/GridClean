@@ -39,43 +39,57 @@ class EIAClient:
             raise RuntimeError("EIA_API_KEY is not set")
         self.timeout = timeout
 
+    # EIA caps `length` at 5000 rows per request.
+    MAX_PAGE = 5000
+
     async def fetch_fuel_type(
         self, region_code: str, hours: int = 48
     ) -> list[GenerationPoint]:
         """Fetch the most recent `hours` of fuel-type generation for a BA.
 
-        EIA returns one row per (period, fuel); ~9 fuels/hour, so we request
-        `hours * 12` rows (headroom) sorted newest-first and parse them.
+        EIA returns one row per (period, fuel) — ~9 fuels/hour. We page through
+        results (newest first, 5000/request) until we've covered `hours` of
+        history, so large backfills (weeks) work despite the per-request cap.
         """
-        params = {
-            "api_key": self.api_key,
-            "frequency": "hourly",
-            "data[0]": "value",
-            "facets[respondent][]": region_code,
-            "sort[0][column]": "period",
-            "sort[0][direction]": "desc",
-            "offset": 0,
-            "length": hours * 12,
-        }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.get(EIA_BASE, params=params)
-            resp.raise_for_status()
-            payload = resp.json()
-
-        rows = payload.get("response", {}).get("data", [])
+        target_rows = hours * 12  # headroom over ~9 fuels/hour
         points: list[GenerationPoint] = []
-        for row in rows:
-            value = row.get("value")
-            if value is None:
-                continue
-            fuel = row.get("fueltype")
-            fuel = fuel if fuel in KNOWN_FUELS else "OTH"
-            points.append(
-                GenerationPoint(
-                    region_code=row["respondent"],
-                    period=_parse_period(row["period"]),
-                    fuel_code=fuel,
-                    mwh=float(value),
-                )
-            )
+        offset = 0
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            while len(points) < target_rows:
+                length = min(self.MAX_PAGE, target_rows - len(points))
+                params = {
+                    "api_key": self.api_key,
+                    "frequency": "hourly",
+                    "data[0]": "value",
+                    "facets[respondent][]": region_code,
+                    "sort[0][column]": "period",
+                    "sort[0][direction]": "desc",
+                    "offset": offset,
+                    "length": length,
+                }
+                resp = await client.get(EIA_BASE, params=params)
+                resp.raise_for_status()
+                rows = resp.json().get("response", {}).get("data", [])
+                if not rows:
+                    break
+
+                for row in rows:
+                    value = row.get("value")
+                    if value is None:
+                        continue
+                    fuel = row.get("fueltype")
+                    fuel = fuel if fuel in KNOWN_FUELS else "OTH"
+                    points.append(
+                        GenerationPoint(
+                            region_code=row["respondent"],
+                            period=_parse_period(row["period"]),
+                            fuel_code=fuel,
+                            mwh=float(value),
+                        )
+                    )
+
+                offset += len(rows)
+                if len(rows) < length:  # last page
+                    break
         return points

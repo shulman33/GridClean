@@ -146,6 +146,36 @@ average, not a forecast.
 
 ---
 
+## 6b. Forecast & cleanest hour
+
+> Forecasting needs a few days of history. If you only ran `make ingest`
+> (~24h), backfill first: `python -m app.manage ingest --hours 504` (21 days).
+
+```bash
+# Next 24h of carbon intensity with 80% prediction intervals + a backtested MAE
+curl -s "$BASE/v1/carbon/forecast?region=CISO&horizon=24&interval=80" | python3 -m json.tool
+```
+Look for: `model`, `history_hours`, a `backtest` block (MAE is the honest
+primary metric; MAPE is floored to avoid near-zero blowups), and `data` points
+each with `lower`/`mean`/`upper`.
+
+```bash
+# When is the cleanest hour to run a load in the next 24h?
+curl -s "$BASE/v1/carbon/cleanest-hour?zip=94103&horizon=24" | python3 -m json.tool
+```
+Look for: `cleanest` vs `dirtiest` (with local times in the region's timezone),
+`potential_savings_pct`, and the full `ranked` list. For California expect the
+cleanest hour around midday (solar peak).
+
+```bash
+# Bounds + errors
+curl -s -o /dev/null -w "unknown region -> HTTP %{http_code}\n" "$BASE/v1/carbon/forecast?region=ZZZ"
+curl -s -o /dev/null -w "horizon=999    -> HTTP %{http_code}\n" "$BASE/v1/carbon/forecast?region=CISO&horizon=999"
+```
+Look for: `404`, `422`. A region with < 72h of history returns `503`.
+
+---
+
 ## 7. Caching & ETags
 
 ```bash
