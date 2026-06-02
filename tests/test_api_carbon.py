@@ -80,6 +80,25 @@ async def test_carbon_now_unknown_zip(client, seeded):
     assert (await client.get("/v1/carbon/now?zip=00000")).status_code == 404
 
 
+async def test_carbon_now_uncurated_zip_falls_back_approximate(client, seeded):
+    # 95014 (CA) isn't in the curated table but falls back via ZIP3 prefix to
+    # CISO (which the fixture seeds), flagged approximate.
+    resp = await client.get("/v1/carbon/now?zip=95014")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["region_code"] == "CISO"
+    assert body["zip"] == "95014"
+    assert body["zip_mapping_confidence"] == "approximate"
+    assert any("ZIP->region mapping is 'approximate'" in c for c in body["caveats"])
+
+
+async def test_carbon_now_not_covered_zip_404(client, seeded):
+    # Anchorage, AK — no tracked balancing authority serves it.
+    resp = await client.get("/v1/carbon/now?zip=99501")
+    assert resp.status_code == 404
+    assert "tracked grid regions" in resp.json()["detail"]
+
+
 async def test_history_pagination(client, seeded):
     first = await client.get(f"/v1/carbon/history?region={TEST_REGION}&limit=10")
     assert first.status_code == 200

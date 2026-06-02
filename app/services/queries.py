@@ -29,6 +29,7 @@ from app.schemas import (
     HistoryPoint,
     SavingsOut,
 )
+from app.services.zip_lookup import region_for_zip
 
 
 async def resolve_region(
@@ -43,10 +44,22 @@ async def resolve_region(
     zip_confidence: str | None = None
     if zip_code is not None:
         zr = await session.get(ZipRegion, zip_code)
-        if zr is None:
-            raise HTTPException(status_code=404, detail=f"ZIP '{zip_code}' not in crosswalk.")
-        region_code = zr.region_code
-        zip_confidence = zr.mapping_confidence
+        if zr is not None:
+            # Curated, city-accurate entry (exact/dominant/approximate).
+            region_code = zr.region_code
+            zip_confidence = zr.mapping_confidence
+        else:
+            # Fall back to the nationwide ZIP3-prefix map (see zip_lookup.py).
+            region_code = region_for_zip(zip_code)
+            if region_code is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"ZIP '{zip_code}' is outside GridClean's tracked grid regions "
+                        "(Alaska, Hawaii, and US territories aren't covered)."
+                    ),
+                )
+            zip_confidence = "approximate"
     else:
         region_code = region.upper()
 
