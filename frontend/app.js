@@ -23,6 +23,70 @@ function h(tag, attrs = {}, ...kids) {
 }
 const fill = (node, ...kids) => { node.replaceChildren(...kids.flat().filter((x) => x != null)); };
 
+// ── skeletons ───────────────────────────────────────────────────────────
+// Shimmer placeholders that match each component's real layout 1:1, so data
+// swaps in with zero layout shift. Shown the instant a load starts (incl. on
+// every region change) and cleared by the matching render — or reset on error.
+const skBlock = (w, ht) => h("span", { class: "sk", style: `display:block;width:${w};height:${ht}` });
+const skLine = (w = "100%") => h("li", {}, skBlock(w, "10px"));
+const fuelSkRow = () =>
+  h("li", { class: "fuel-row" },
+    skBlock("80%", "10px"),
+    h("span", { class: "fuel-track" }, h("span", { class: "fuel-fill sk", style: `width:${20 + Math.random() * 60}%` })),
+    skBlock("70%", "10px"));
+const cmpSkRow = () =>
+  h("li", { class: "cmp-row" },
+    skBlock("70%", "12px"),
+    h("span", { class: "cmp-track" }, h("span", { class: "cmp-fill sk", style: `width:${30 + Math.random() * 60}%` })),
+    skBlock("60%", "14px"));
+const rankSkRow = () =>
+  h("li", { class: "flex items-center gap-2" },
+    h("span", { class: "sk", style: "width:8px;height:8px;border-radius:999px" }),
+    skBlock("7rem", "10px"), skBlock("2rem", "10px"));
+
+// Fixed text fields: skeleton placeholder (sized like real content) ↔ dash.
+const NOW_FIELDS = {
+  "#now-region": ["Region Name", "—"], "#now-sub": ["CODE · Jan 0, 00:00 AM", "—"],
+  "#now-badge": ["moderate", "—"], "#now-value": ["888", "––"],
+  "#now-renew": ["00%", "—"], "#now-cfree": ["00%", "—"],
+};
+const CLEAN_FIELDS = { "#clean-when": ["Mon 00:00", "—"], "#clean-value": ["888", "––"] };
+
+function fieldsState(map, mode) {
+  // mode: "sk" → skeleton, "reset" → dash, "clear" → just drop the class
+  for (const [sel, [ph, dash]] of Object.entries(map)) {
+    const e = $(sel);
+    // Clear any inline color/background a prior render set (e.g. the badge fill
+    // or the big-number color) so the shimmer shows through on a re-skeleton.
+    if (mode === "sk") { e.classList.add("skeleton"); e.textContent = ph; e.style.color = ""; e.style.background = ""; }
+    else { e.classList.remove("skeleton"); if (mode === "reset") e.textContent = dash; }
+  }
+}
+function nowSkeleton(on) {
+  if (on) {
+    fieldsState(NOW_FIELDS, "sk");
+    fill($("#now-fuels"), Array.from({ length: 5 }, fuelSkRow));
+    fill($("#now-caveats"), [skLine("70%"), skLine("55%")]);
+  } else { fieldsState(NOW_FIELDS, "reset"); fill($("#now-fuels")); fill($("#now-caveats")); }
+}
+function cleanSkeleton(on) {
+  if (on) {
+    fieldsState(CLEAN_FIELDS, "sk");
+    $("#clean-msg").textContent = "";
+    fill($("#clean-ranked"), Array.from({ length: 6 }, rankSkRow));
+  } else { fieldsState(CLEAN_FIELDS, "reset"); fill($("#clean-ranked")); }
+}
+function compareSkeleton(on) {
+  fill($("#cmp-bars"), on ? Array.from({ length: state.compare.length || 5 }, cmpSkRow) : []);
+}
+const chartBox = () => document.querySelector(".chart-box");
+function chartSkeleton(on) {
+  const box = chartBox();
+  const existing = box.querySelector(".chart-sk");
+  if (on && !existing) box.append(h("div", { class: "sk chart-sk" }));
+  else if (!on && existing) existing.remove();
+}
+
 // ── carbon → color scale (the visual signature) ──────────────────────────
 function carbonColor(g) {
   if (g == null) return "#7c8aa5";
@@ -83,6 +147,7 @@ let chart;
 
 // ── NOW panel ─────────────────────────────────────────────────────────────
 function renderNow(d) {
+  fieldsState(NOW_FIELDS, "clear"); // drop skeleton; real values fill in below
   const g = d.gco2_per_kwh;
   const color = carbonColor(g);
   $("#now-region").textContent = d.region_name;
@@ -108,11 +173,12 @@ function renderNow(d) {
 
 // ── forecast chart (history + forecast band) ───────────────────────────────
 async function loadChart(region) {
+  chartSkeleton(true);
   const [hist, fc] = await Promise.all([
     api(`/v1/carbon/history?region=${region}&limit=48`),
     api(`/v1/carbon/forecast?region=${region}&horizon=24`),
   ]);
-  if (!hist || !fc) return;
+  if (!hist || !fc) { chartSkeleton(false); return; }
 
   const hData = [...hist.data].reverse(); // ascending
   const labels = [...hData.map((p) => fmtHour(p.period)), ...fc.data.map((p) => fmtHour(p.period))];
@@ -147,6 +213,7 @@ async function loadChart(region) {
       },
     },
   };
+  chartSkeleton(false);
   if (chart) chart.destroy();
   chart = new Chart($("#chart"), cfg);
   const bt = fc.backtest;
@@ -156,8 +223,10 @@ async function loadChart(region) {
 
 // ── cleanest hour ───────────────────────────────────────────────────────
 async function loadCleanest(region) {
+  cleanSkeleton(true);
   const d = await api(`/v1/carbon/cleanest-hour?region=${region}&horizon=24`);
-  if (!d) return;
+  if (!d) { cleanSkeleton(false); return; }
+  fieldsState(CLEAN_FIELDS, "clear");
   $("#clean-when").textContent = d.cleanest.period_local;
   const cv = $("#clean-value");
   cv.textContent = Math.round(d.cleanest.gco2_per_kwh);
@@ -188,8 +257,9 @@ function renderCompareChips() {
 }
 async function loadCompare() {
   if (!state.compare.length) { fill($("#cmp-bars")); return; }
+  compareSkeleton(true);
   const d = await api(`/v1/carbon/compare?regions=${state.compare.join(",")}`);
-  if (!d) return;
+  if (!d) { compareSkeleton(false); return; }
   const max = Math.max(...d.items.map((i) => i.gco2_per_kwh), 1);
   fill($("#cmp-bars"), d.items.map((it) => {
     const c = carbonColor(it.gco2_per_kwh);
@@ -278,9 +348,13 @@ async function runInsights() {
 
 // ── init / wiring ───────────────────────────────────────────────────────
 async function refreshLocation() {
+  // Skeleton all three dependent panels at once, before any request resolves.
+  nowSkeleton(true);
+  chartSkeleton(true);
+  cleanSkeleton(true);
   const q = state.zip ? `zip=${state.zip}` : `region=${state.region}`;
   const now = await api(`/v1/carbon/now?${q}`);
-  if (!now) return;
+  if (!now) { nowSkeleton(false); chartSkeleton(false); cleanSkeleton(false); return; }
   state.region = now.region_code;
   $("#region-select").value = state.region;
   renderNow(now);
@@ -288,19 +362,20 @@ async function refreshLocation() {
   loadCleanest(state.region);
 }
 
-async function init() {
+// Populate the region/insights selectors + compare chips once /regions lands.
+// Kept off the critical path: the carbon panels don't wait on it.
+async function loadRegions() {
   regions = (await api("/v1/regions")) || [];
   if (!regions.length) { $("#status").textContent = "API offline"; return; }
-
   const opts = regions.map((r) => h("option", { value: r.code }, `${r.code} — ${r.name}`));
   fill($("#region-select"), opts.map((o) => o.cloneNode(true)));
   fill($("#ins-region"), opts.map((o) => o.cloneNode(true)));
   $("#region-select").value = state.region;
   $("#ins-region").value = state.region;
-
   renderCompareChips();
-  renderExamples();
+}
 
+function wireEvents() {
   $("#region-select").addEventListener("change", (e) => {
     state.region = e.target.value; state.zip = null; $("#zip").value = "";
     refreshLocation();
@@ -313,9 +388,17 @@ async function init() {
   });
   $("#ask-form").addEventListener("submit", (e) => { e.preventDefault(); runAsk(); });
   $("#ins-btn").addEventListener("click", runInsights);
+}
 
+function init() {
+  // Listeners + static UI first — interactive immediately, no data needed.
+  wireEvents();
+  renderExamples();
+  // Fire the data-critical requests in parallel right away (no /regions gate).
   refreshLocation();
   loadCompare();
+  // Selectors/chips fill in alongside, off the critical path.
+  loadRegions();
 }
 
 init();
