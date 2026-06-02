@@ -58,18 +58,16 @@
     <section aria-labelledby="now-h" class="reveal" style="--d:0ms">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mb-4">
         <h2 id="now-h" class="section-h">Right now</h2>
-        <!-- Mobile: full-width, two stacked rows ([ZIP][Go] / [or][region]).
-             sm+: inline, right-aligned. -->
+        <!-- Mobile: full-width, stacked — [ZIP][Go] / centered "or" / [region].
+             sm+: inline, right-aligned with "or" between the two fields. -->
         <form id="loc-form" class="flex flex-col gap-2 font-mono text-sm w-full sm:w-auto sm:flex-row sm:items-center sm:justify-end">
           <div class="flex items-center gap-2 w-full sm:w-auto">
             <input id="zip" inputmode="numeric" maxlength="5" placeholder="ZIP (e.g. 94103)"
               class="field flex-1 min-w-0 sm:flex-none sm:w-32" aria-label="ZIP code" />
             <button type="submit" id="zip-go" class="btn-cyan shrink-0" aria-label="Look up ZIP">Go</button>
           </div>
-          <div class="flex items-center gap-2 w-full sm:w-auto">
-            <span class="text-mute text-xs shrink-0">or</span>
-            <select id="region-select" class="field flex-1 min-w-0 sm:flex-none" aria-label="Region"></select>
-          </div>
+          <span class="text-mute text-xs text-center shrink-0 sm:text-left">or</span>
+          <select id="region-select" class="field w-full min-w-0 sm:w-auto sm:flex-none" aria-label="Region"></select>
         </form>
       </div>
 
