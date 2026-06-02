@@ -125,5 +125,12 @@
 }
 .toast.show { transform: translate(-50%, 0); }
 
-.skeleton { color: transparent !important; background: linear-gradient(90deg, var(--color-line) 25%, var(--color-panel-2) 50%, var(--color-line) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; }
+.skeleton { color: transparent !important; background: linear-gradient(90deg, var(--color-line) 25%, var(--color-panel-2) 50%, var(--color-line) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; display: inline-block; }
 @keyframes shimmer { to { background-position: -200% 0; } }
+
+/* skeleton building blocks: shimmer rectangle (size via inline style) + a
+   full-bleed overlay for the chart, so every panel has an accurate loading
+   state with no layout shift when real data arrives. */
+.sk { background: linear-gradient(90deg, var(--color-line) 25%, var(--color-panel-2) 50%, var(--color-line) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 5px; }
+.chart-sk { position: absolute; inset: 0; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { .skeleton, .sk { animation: none; } }

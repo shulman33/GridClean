@@ -98,22 +98,8 @@ def _backtest(series: pd.Series, horizon: int, alpha: float) -> BacktestMetrics:
     )
 
 
-async def forecast_region(
-    session: AsyncSession, region_code: str, horizon: int = 24, interval_pct: int = 80
-) -> ForecastOut:
-    region_row = await session.get(Region, region_code)
-    if region_row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown region '{region_code}'.")
-
-    series = await _load_series(session, region_code)
-    alpha = 1.0 - interval_pct / 100.0
-
-    frame, backtest = await asyncio.gather(
-        asyncio.to_thread(_fit_and_predict, series, horizon, alpha),
-        asyncio.to_thread(_backtest, series, horizon, alpha),
-    )
-
-    points = [
+def _frame_to_points(frame) -> list[ForecastPoint]:
+    return [
         ForecastPoint(
             period=ts.to_pydatetime(),
             mean_gco2_per_kwh=round(max(row["mean"], 0.0), 1),
@@ -122,6 +108,33 @@ async def forecast_region(
         )
         for ts, row in frame.iterrows()
     ]
+
+
+async def _forecast_core(
+    session: AsyncSession, region_code: str, horizon: int, interval_pct: int
+) -> tuple[Region, pd.Series, list[ForecastPoint]]:
+    """Resolve region, load the series, and fit ETS **once** to get mean+interval
+    points. Shared by `forecast_region` (which adds a backtest) and
+    `cleanest_hour` (which needs only the points) so a page load that hits both
+    endpoints doesn't fit the same model four times over."""
+    region_row = await session.get(Region, region_code)
+    if region_row is None:
+        raise HTTPException(status_code=404, detail=f"Unknown region '{region_code}'.")
+
+    series = await _load_series(session, region_code)
+    alpha = 1.0 - interval_pct / 100.0
+    frame = await asyncio.to_thread(_fit_and_predict, series, horizon, alpha)
+    return region_row, series, _frame_to_points(frame)
+
+
+async def forecast_region(
+    session: AsyncSession, region_code: str, horizon: int = 24, interval_pct: int = 80
+) -> ForecastOut:
+    region_row, series, points = await _forecast_core(
+        session, region_code, horizon, interval_pct
+    )
+    alpha = 1.0 - interval_pct / 100.0
+    backtest = await asyncio.to_thread(_backtest, series, horizon, alpha)
 
     return ForecastOut(
         region_code=region_code,
@@ -147,7 +160,11 @@ async def forecast_region(
 async def cleanest_hour(
     session: AsyncSession, region_row: Region, horizon: int = 24
 ) -> CleanestHourOut:
-    forecast = await forecast_region(session, region_row.code, horizon=horizon)
+    # Only the forecast points are needed here (not the backtest), so fit once
+    # via the shared core rather than the full `forecast_region`.
+    _region, _series, points = await _forecast_core(
+        session, region_row.code, horizon, interval_pct=80
+    )
     tz = ZoneInfo(region_row.timezone) if region_row.timezone else ZoneInfo("UTC")
 
     def to_clean(p: ForecastPoint) -> CleanHour:
@@ -158,7 +175,7 @@ async def cleanest_hour(
             gco2_per_kwh=p.mean_gco2_per_kwh,
         )
 
-    ranked_points = sorted(forecast.data, key=lambda p: p.mean_gco2_per_kwh)
+    ranked_points = sorted(points, key=lambda p: p.mean_gco2_per_kwh)
     cleanest = to_clean(ranked_points[0])
     dirtiest = to_clean(ranked_points[-1])
     savings = (
