@@ -60,10 +60,13 @@
    space below the chart. min-height keeps it usable on short/mobile layouts. */
 .chart-box { position: relative; flex: 1 1 auto; min-height: 260px; }
 
-/* The region <select> sizes to its widest option ("ERCO — Electric Reliability
-   Council of Texas"), which overflows narrow screens. Cap it; the native
-   control truncates the label. */
-#region-select, #ins-region { max-width: 14rem; }
+/* On desktop the region <select>s aren't flex-constrained and would size to
+   their widest option ("ERCO — Electric Reliability Council of Texas"); cap
+   them. On mobile they're flex-1/min-w-0 (fill their row, truncate), so no cap
+   is needed — and a cap there would leave an awkward gap. */
+@media (min-width: 640px) {
+  #region-select, #ins-region { max-width: 14rem; }
+}
 
 .field, .field-cyan {
   background: var(--color-panel-2); border: 1px solid var(--color-line);
