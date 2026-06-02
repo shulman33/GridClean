@@ -282,20 +282,75 @@ function renderExamples() {
   fill($("#ask-examples"), EXAMPLES.map((q) =>
     h("button", { class: "ex-chip", type: "button", onclick: () => { $("#ask-input").value = q; runAsk(); } }, q)));
 }
+// ── shared AI helpers: button spinner, skeletons, safe markdown ────────────
+const skP = (w) => h("span", { class: "sk", style: `display:block;width:${w};height:11px;margin-bottom:7px` });
+function btnBusy(btn, label) { fill(btn, h("span", { class: "spinner" }), ` ${label}`); btn.disabled = true; }
+function btnIdle(btn, label) { btn.disabled = false; btn.textContent = label; }
+
+function askSkeleton(on) {
+  $("#ask-out").classList.remove("hidden");
+  $("#ask-conf").classList.toggle("skeleton", on);
+  $("#ask-conf").textContent = on ? "loading" : "";
+  fill($("#ask-sql"), on ? [skP("72%"), skP("90%"), skP("48%")] : []);
+  fill($("#ask-table"), on
+    ? h("tbody", {}, Array.from({ length: 4 }, () =>
+        h("tr", {}, Array.from({ length: 3 }, () => h("td", {}, skP("80%"))))))
+    : []);
+  $("#ask-note").textContent = "";
+}
+function insSkeleton(on) {
+  $("#ins-out").classList.remove("hidden");
+  fill($("#ins-text"), on ? [skP("100%"), skP("97%"), skP("99%"), skP("62%")] : []);
+  fill($("#ins-stats"), on
+    ? Array.from({ length: 4 }, () =>
+        h("div", { class: "stat-tile" }, skP("70%"),
+          h("span", { class: "sk", style: "display:block;width:55%;height:20px" })))
+    : []);
+}
+
+// Safe inline markdown -> DOM (text becomes text nodes, never innerHTML).
+// Supports **bold**, *italic*, `code`. Underscore variants are intentionally
+// omitted so snake_case (e.g. renewable_intensity_correlation) isn't mangled.
+function mdInline(text) {
+  const out = [];
+  const re = /\*\*([^*]+)\*\*|\*([^*\n]+)\*|`([^`]+)`/g;
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(document.createTextNode(text.slice(last, m.index)));
+    if (m[1]) out.push(h("strong", {}, m[1]));
+    else if (m[2]) out.push(h("em", {}, m[2]));
+    else if (m[3]) out.push(h("code", {}, m[3]));
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push(document.createTextNode(text.slice(last)));
+  return out;
+}
+function renderMarkdown(el, text) {
+  const blocks = String(text ?? "").split(/\n{2,}/);
+  const kids = [];
+  blocks.forEach((b, i) => {
+    if (i) kids.push(h("br"), h("br"));
+    kids.push(...mdInline(b.replace(/\n/g, " ")));
+  });
+  fill(el, kids);
+}
+
 async function runAsk() {
   const q = $("#ask-input").value.trim();
   if (!q) return;
   const btn = $("#ask-btn");
-  btn.disabled = true; btn.textContent = "…";
+  btnBusy(btn, "Running");
+  askSkeleton(true);
   const d = await api("/v1/ai/ask", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ question: q }),
   });
-  btn.disabled = false; btn.textContent = "Run";
-  if (!d) return;
+  btnIdle(btn, "Run");
+  if (!d) { askSkeleton(false); $("#ask-out").classList.add("hidden"); return; }
 
   $("#ask-out").classList.remove("hidden");
+  $("#ask-conf").classList.remove("skeleton");
   $("#ask-sql").textContent = d.sql;
   $("#ask-conf").textContent = `${d.confidence} confidence${d.repaired ? " · repaired" : ""}`;
 
@@ -331,12 +386,13 @@ async function runInsights() {
   const region = $("#ins-region").value;
   const hours = $("#ins-window").value;
   const btn = $("#ins-btn");
-  btn.disabled = true; btn.textContent = "…";
+  btnBusy(btn, "Summarizing");
+  insSkeleton(true);
   const d = await api(`/v1/ai/insights?region=${region}&hours=${hours}`);
-  btn.disabled = false; btn.textContent = "Summarize";
-  if (!d) return;
+  btnIdle(btn, "Summarize");
+  if (!d) { insSkeleton(false); $("#ins-out").classList.add("hidden"); return; }
   $("#ins-out").classList.remove("hidden");
-  $("#ins-text").textContent = d.narrative;
+  renderMarkdown($("#ins-text"), d.narrative);  // model emits markdown (**bold**)
   const s = d.stats;
   fill($("#ins-stats"), Object.keys(STAT_LABELS).filter((k) => k in s).map((k) => {
     const v = k === "mean_renewable_share" ? pct(s[k]) : s[k];
