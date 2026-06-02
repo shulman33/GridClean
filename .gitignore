@@ -27,3 +27,5 @@ data/raw/
 dist/
 build/
 *.log
+
+linkedin-post.md

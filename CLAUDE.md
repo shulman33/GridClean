@@ -56,3 +56,9 @@ python -m app.eval.run   # text-to-SQL eval (execution-match scoring)
 - **Tests** (`tests/conftest.py`) run against real Postgres + Redis, isolate on Redis DB index 15, and flush per test. AI tests inject a **fake generator/narrator** so CI makes no live model calls — but the real guard + read-only execution path still run against synthetic data. Keep that pattern: never add live model calls to tests.
 - Ruff: line-length 100, rules `E,F,I,UP,B` (B008 ignored — FastAPI callable defaults). `alembic/versions` is excluded from lint; don't hand-edit lint-clean migrations.
 - The AI model is `claude-opus-4-8` (set `AI_MODEL=claude-sonnet-4-6` to cut cost).
+
+The base url for the production deployment is `web-production-8ecb8.up.railway.app` always use this url when debugging production issues. 
+
+Always use the Neon MCP server and the railway mcp server for debugging the production env. If any of the MCPs are not connected stop and let me know and let me enable them before proceeding. The docker compose set up is how we develop locally. 
+
+Always use git logs to check what was the latest PR and always make sure that main is up to date before branching off of it
